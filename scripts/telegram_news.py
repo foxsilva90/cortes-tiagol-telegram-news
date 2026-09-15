@@ -84,8 +84,11 @@ SUMMARY_WEIGHT = 0.5
 AGE_PENALTY_PER_HOUR = 0.5
 MIN_SCORE = 0
 
-USER_AGENT ="Mozilla/5.0 (CortesTiaGOL news bot)"
+USER_AGENT = "Mozilla/5.0 (CortesTiaGOL news bot)"
 MAX_AGE = timedelta(hours=6)
+# Dois disparadores (cron-job.org + agenda do GitHub) podem rodar em sequência;
+# isso evita dois posts colados.
+MIN_POST_INTERVAL = timedelta(minutes=12)
 MAX_SEEN = 3000
 SEND_DELAY_S = 4
 # Títulos de fontes diferentes com >=50% das palavras em comum = mesma notícia.
@@ -194,10 +197,10 @@ def load_state():
     return None
 
 
-def save_state(seen):
+def save_state(seen, last_post=None):
     STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
     STATE_FILE.write_text(
-        json.dumps({"seen": seen[-MAX_SEEN:]}, ensure_ascii=False, indent=0),
+        json.dumps({"seen": seen[-MAX_SEEN:], "last_post": last_post}, ensure_ascii=False, indent=0),
         encoding="utf-8",
     )
 
@@ -338,9 +341,16 @@ def main():
         print("Mensagem de teste enviada.")
         return
 
-    items = fetch_all()
     state = load_state()
     seen = state["seen"] if state else []
+    last_post = state.get("last_post") if state else None
+    if not args.dry_run and last_post:
+        elapsed = datetime.now(timezone.utc) - datetime.fromisoformat(last_post)
+        if elapsed < MIN_POST_INTERVAL:
+            print(f"Último post há {elapsed.seconds // 60} min; pulando rodada.")
+            return
+
+    items = fetch_all()
     new_items = pick_new(items, set(seen))
 
     if state is None and not args.backfill and not args.dry_run:
@@ -364,12 +374,13 @@ def main():
             print(f"[erro] {exc}", file=sys.stderr)
             break
         seen.extend(item_keys(item))
+        last_post = datetime.now(timezone.utc).isoformat()
         time.sleep(SEND_DELAY_S)
 
     # O que ficou de fora fica na fila pras próximas rodadas; some sozinho
     # quando passa de MAX_AGE.
     if not args.dry_run:
-        save_state(seen)
+        save_state(seen, last_post)
 
 
 if __name__ == "__main__":
