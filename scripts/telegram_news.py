@@ -36,15 +36,20 @@ FEEDS = [
     ("ge", "https://ge.globo.com/rss/ge/futebol/"),
     ("ESPN", "https://www.espn.com.br/rss/futebol"),
     ("Gazeta Esportiva", "https://www.gazetaesportiva.com/feed/"),
+    ("Placar", "https://placar.com.br/feed/"),
+    ("Trivela", "https://trivela.com.br/feed/"),
+    ("Metrópoles", "https://www.metropoles.com/esportes/futebol/feed"),
 ]
 
 # Gazeta cobre outros esportes; bloqueia pelas seções da URL.
-NON_FOOTBALL_URL = re.compile(r"/mais-esportes/|/(basquete|volei|tenis|f1|automobilismo|mma|boxe|natacao)/")
+NON_FOOTBALL_URL = re.compile(
+    r"/mais-esportes/|/(basquete|volei|tenis|f1|automobilismo|mma|boxe|natacao|nfl|nba|futebol-americano)/"
+)
 # Minuto a minuto, guias de transmissão, páginas de jogo e galerias de fotos
 # não são notícia.
 SKIP_TITLE = re.compile(
-    r"\bao vivo\b|tempo real|siga tudo|onde assistir|- globoesporte\.com$|"
-    r"\bfotos\b|\bgaleria\b|em imagens",
+    r"\bao vivo\b|tempo real|\bsiga\b|onde assistir|- globoesporte\.com$|"
+    r"\bfotos\b|\bgaleria\b|em imagens|\bnfl\b|monday night|futebol americano",
     re.IGNORECASE,
 )
 
