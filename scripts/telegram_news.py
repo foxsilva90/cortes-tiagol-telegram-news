@@ -62,7 +62,7 @@ NS = {"media": "http://search.yahoo.com/mrss/"}
 
 def load_env():
     # Variáveis de ambiente (ex: segredos do GitHub Actions) valem se não houver .env.
-    env = {k: v for k, v in os.environ.items() if k.startswith("TELEGRAM_")}
+    env = {k: v.strip().lstrip("﻿") for k, v in os.environ.items() if k.startswith("TELEGRAM_")}
     if ENV_FILE.exists():
         for line in ENV_FILE.read_text(encoding="utf-8-sig").splitlines():
             line = line.strip()
