@@ -13,4 +13,12 @@ polêmicas somam; base e Série C/D subtraem; −0,5 ponto por hora de idade).
 - Rodar na mão: aba **Actions** → "Noticias de futebol no Telegram" → **Run workflow**.
 - Teste local: `python scripts/telegram_news.py --dry-run`.
 
-O agendamento do GitHub pode atrasar alguns minutos em horário de pico.
+## Quem dispara
+
+- **Principal:** job "Noticias Telegram" no [cron-job.org](https://cron-job.org)
+  (conta do dono), a cada 15 min, `POST https://api.github.com/repos/foxsilva90/cortes-tiagol-telegram-news/actions/workflows/news.yml/dispatches`
+  com body `{"ref":"main"}` e um fine-grained token (só Actions: read/write neste repo).
+  A URL precisa ser `https://` — com `http://` o GitHub devolve 301 e nada roda.
+- **Reserva:** `schedule` do próprio workflow (o GitHub pula muitas rodadas).
+- O script ignora rodadas a menos de 12 min do último post, então os dois
+  disparadores juntos não geram post dobrado.
