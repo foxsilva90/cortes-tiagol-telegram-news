@@ -2,7 +2,9 @@ name: Noticias de futebol no Telegram
 
 on:
   schedule:
-    - cron: "*/15 * * * *"
+    # Minutos "quebrados": o GitHub atrasa/pula mais os agendamentos em :00/:15/:30/:45.
+    # Disparo principal vem de fora (cron-job.org -> workflow_dispatch); este é o reserva.
+    - cron: "7,22,37,52 * * * *"
   workflow_dispatch:
 
 concurrency:
