@@ -55,6 +55,8 @@ SEND_DELAY_S = 4
 # Títulos de fontes diferentes com >=50% das palavras em comum = mesma notícia.
 SAME_STORY_OVERLAP = 0.5
 HTTP_TIMEOUT_S = 20
+EMPTY_RETRIES = 2
+EMPTY_RETRY_DELAY_S = 5
 CHANNEL_SIGNATURE = "⚽ <b>Cortes do TiaGOL</b> — notícias do futebol"
 
 NS = {"media": "http://search.yahoo.com/mrss/"}
@@ -74,8 +76,13 @@ def load_env():
 
 def http_get(url):
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT_S) as resp:
-        body = resp.read()
+    for attempt in range(EMPTY_RETRIES + 1):
+        with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT_S) as resp:
+            body = resp.read()
+        # ESPN às vezes devolve 202 vazio (anti-bot) e libera na tentativa seguinte.
+        if body or attempt == EMPTY_RETRIES:
+            break
+        time.sleep(EMPTY_RETRY_DELAY_S)
     # Alguns servidores (ex: ge) mandam gzip mesmo sem Accept-Encoding.
     return gzip.decompress(body) if body[:2] == b"\x1f\x8b" else body
 
