@@ -20,6 +20,7 @@ import os
 import re
 import sys
 import time
+import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -53,7 +54,33 @@ SKIP_TITLE = re.compile(
     re.IGNORECASE,
 )
 
-USER_AGENT = "Mozilla/5.0 (CortesTiaGOL news bot)"
+# Pontuação de relevância. Casamento sem acento e sem maiúsculas, no título
+# (peso cheio) e no resumo (meio peso). Cada regra conta uma vez por texto.
+SCORE_RULES = [
+    # Clubes grandes
+    (r"flamengo|palmeiras|corinthians|sao paulo|santos|vasco|botafogo(?!-sp)|fluminense|"
+     r"gremio|internacional|\binter\b|cruzeiro|atletico-mg|\bgalo\b", 3),
+    # Seleção e craques
+    (r"selecao|ancelotti|neymar|vini jr|vinicius junior|endrick|estevao|raphinha", 4),
+    # Competições grandes
+    (r"libertadores|copa do brasil|brasileirao|champions|copa do mundo|mundial de clubes|"
+     r"\bfinal\b|classico", 3),
+    # Assuntos quentes
+    (r"contrata|acerta|reforco|demit|demissao|\bdemite|novo tecnico|treinador|"
+     r"proposta|venda|vendid|rescis|oficializa|anuncia|lesao|cirurgia|"
+     r"polemica|expuls|\bvar\b|arbitragem|briga|confusao|protesto|punicao|stjd", 3),
+    # Gol e resultado de jogo grande
+    (r"\bgoleada|goleia|vira sobre|vence|derrota|empata|eliminad|classifica", 1),
+    # Pouco interesse
+    (r"\bsub-\d+|\bbase\b|serie c|serie d", -4),
+    (r"provaveis escalacoes|escalacao", -2),
+]
+SCORE_PATTERNS = [(re.compile(p), w) for p, w in SCORE_RULES]
+SUMMARY_WEIGHT = 0.5
+AGE_PENALTY_PER_HOUR = 0.5
+MIN_SCORE = 0
+
+USER_AGENT ="Mozilla/5.0 (CortesTiaGOL news bot)"
 MAX_AGE = timedelta(hours=6)
 MAX_SEEN = 3000
 SEND_DELAY_S = 4
@@ -251,6 +278,36 @@ def pick_new(items, seen_set):
     return sorted(fresh, key=lambda i: i["published"] or epoch)
 
 
+def fold(text):
+    decomposed = unicodedata.normalize("NFKD", text.lower())
+    return "".join(c for c in decomposed if not unicodedata.combining(c))
+
+
+def keyword_score(item):
+    title, summary = fold(item["title"]), fold(item["summary"])
+    score = 0.0
+    for pattern, weight in SCORE_PATTERNS:
+        if pattern.search(title):
+            score += weight
+        elif pattern.search(summary):
+            score += weight * SUMMARY_WEIGHT
+    return score
+
+
+def rank(items):
+    """Ordena por relevância (pontos - penalidade por idade); descarta os negativos."""
+    now = datetime.now(timezone.utc)
+    ranked = []
+    for item in items:
+        score = keyword_score(item)
+        if score < MIN_SCORE:
+            continue
+        hours = (now - item["published"]).total_seconds() / 3600 if item["published"] else 0
+        ranked.append((score - hours * AGE_PENALTY_PER_HOUR, score, item))
+    ranked.sort(key=lambda r: r[0], reverse=True)
+    return ranked
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--max", type=int, default=1, help="máx. de posts por execução")
@@ -289,11 +346,12 @@ def main():
         print(f"1ª execução: {len(new_items)} notícias marcadas como vistas. Próximas rodadas postam só novidades.")
         return
 
-    to_post = new_items[-args.max:]
-    print(f"{len(items)} itens lidos, {len(new_items)} novos, postando {len(to_post)}.")
-    for item in to_post:
+    ranked = rank(new_items)
+    to_post = ranked[: args.max]
+    print(f"{len(items)} itens lidos, {len(new_items)} novos, {len(ranked)} relevantes, postando {len(to_post)}.")
+    for final, score, item in to_post:
         if args.dry_run:
-            print(f"- [{item['source']}] {item['title']}\n  {item['link']}\n  img={item['image']}")
+            print(f"- ({final:.1f} | {score:g} pts) [{item['source']}] {item['title']}")
             continue
         try:
             send_item(token, chat_id, item)
