@@ -59,7 +59,11 @@ SKIP_TITLE = re.compile(
 SCORE_RULES = [
     # Clubes grandes
     (r"flamengo|palmeiras|corinthians|sao paulo|santos|vasco|botafogo(?!-sp)|fluminense|"
-     r"gremio|internacional|\binter\b|cruzeiro|atletico-mg|\bgalo\b", 3),
+     r"gremio|internacional|\binter\b(?! de milao)|cruzeiro|atletico-mg|\bgalo\b", 3),
+    # Clubes grandes da Europa (um pouco abaixo dos brasileiros)
+    (r"real madrid|barcelona|\bbarca\b|atletico de madrid|manchester|\bcity\b|liverpool|"
+     r"arsenal|chelsea|tottenham|bayern|dortmund|\bpsg\b|paris saint-germain|"
+     r"juventus|\bmilan\b|inter de milao|napoli", 2),
     # Seleção e craques
     (r"selecao|ancelotti|neymar|vini jr|vinicius junior|endrick|estevao|raphinha", 4),
     # Competições grandes
