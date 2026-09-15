@@ -309,7 +309,8 @@ def rank(items):
         score = keyword_score(item)
         if score < MIN_SCORE:
             continue
-        hours = (now - item["published"]).total_seconds() / 3600 if item["published"] else 0
+        # max(0, …): feed com fuso errado manda data "no futuro" e ganharia bônus.
+        hours = max(0, (now - item["published"]).total_seconds() / 3600) if item["published"] else 0
         ranked.append((score - hours * AGE_PENALTY_PER_HOUR, score, item))
     ranked.sort(key=lambda r: r[0], reverse=True)
     return ranked
